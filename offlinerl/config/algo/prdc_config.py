@@ -1,8 +1,16 @@
 import torch
-import gym
+from offlinerl.utils.exp import select_free_cuda
+
+task = "Hopper-v3"
+task_data_type = "low"
+task_train_num = 99
+
+seed = 42
+device = 'cuda'+":"+str(select_free_cuda()) if torch.cuda.is_available() else 'cpu'
+
 
 steps_per_epoch = 1000
-max_epoch = 100
+max_epoch = 1000
 batch_size = 256
 state_dim = None
 action_dim = None

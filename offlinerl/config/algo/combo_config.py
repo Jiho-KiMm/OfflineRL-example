@@ -12,50 +12,83 @@ obs_shape = None
 act_shape = None
 max_action = None
 
+# model save path
 dynamics_path = None
+dynamics_save_path = None
 
-hidden_layer_size = 400
-hidden_layers = 2
-transition_layers = 4
-
+# transition model train
 transition_init_num = 7
 transition_select_num = 5
+val_ratio = 0.2
+max_epochs_since_update = 5
+transition_max_epochs = None
 
-real_data_ratio = 0.5
+# trick config
+trainsition_clip = False
+normalize_obs = False
+transition_scaler = True
+policy_scaler = False
 
+# transition config
 transition_batch_size = 256
-policy_batch_size = 256
-data_collection_per_epoch = 50e3
-buffer_size = 120e4
-steps_per_epoch = 1000
-max_epoch = 500
-
-learnable_alpha = True
 transition_lr = 1e-3
+logvar_loss_coef = 0.01
+dynamics_hidden_dims = [200, 200, 200, 200]
+dynamics_weight_decay = [2.5e-5, 5e-5, 7.5e-5, 7.5e-5, 1e-4]
+
+# alpha config
+learnable_alpha = True
+alpha_lr = 1e-4
+alpha = 0.2
+
+# train config
+horizon = 1
+real_data_ratio = 0.5
+max_epoch = 1000
+steps_per_epoch = 1000
+rollout_freq = 1000
+rollout_batch_size = 5e+4
+
+# policy config
+hidden_dims = [256, 256, 256]
+policy_batch_size = 256
 actor_lr = 1e-4
+
+# critic config
 critic_lr = 3e-4
-target_entropy = None
 discount = 0.99
 soft_target_tau = 5e-3
+target_entropy = None
 
-num_samples = 10
-learnable_beta = False
-base_beta = 0.5
-lagrange_thresh = 5
-with_important_sampling = True
+# others
+val_frequency = 10
+eval_episodes = 10
+model_retain_epochs = 5
 
-horizon = 5
+# combo config
+cql_weight = 2.5
+temperatue = 1.0
+max_q_backup = False
+deterministic_backup = True
+with_lagrange = False
+lagrange_threshold = 10.0
+cql_alpha_lr = 3e-4
+num_repeat_actions = 10
+uniform_rollout = False
+rho_s = "mix"  # choose from ["model", "mix"]
 
 #tune
 params_tune = {
-    "horzion" : {"type" : "discrete", "value": [1, 5]},
-    "base_beta" : {"type" : "discrete", "value": [0.5, 1, 5]},
-    "with_important_sampling" : {"type" : "discrete", "value": [True, False]},
+    "buffer_size" : {"type" : "discrete", "value": [1e6, 2e6]},
+    "real_data_ratio" : {"type" : "discrete", "value": [0.05, 0.1, 0.2]},
+    "horzion" : {"type" : "discrete", "value": [1, 2, 5]},
+    "lam" : {"type" : "continuous", "value": [0.1, 10]},
+    "learnable_alpha" : {"type" : "discrete", "value": [True, False]},
 }
 
 #tune
 grid_tune = {
     "horizon" : [1, 5],
-    "base_beta" : [0.5, 1, 5],
-    "with_important_sampling" : [True, False],
+    "cql_weight" : [2.5, 3.5, 5],
+    "rho_s": ["model", "mix"],
 }

@@ -162,5 +162,54 @@ def get_termination_fn(task):
         return termination_fn_pen
     elif 'door' in task:
         return terminaltion_fn_door
+    elif task in ['Pipeline', 'DMSD', 'Fusion', 'Salespromotion', 'SafetyHalfCheetah']:
+        def terminaltion_fn(obs, act, next_obs):
+            data = {
+                "obs" : obs,
+                "action" : act,
+                "next_obs" : next_obs,
+            }
+            assert len(obs.shape) == len(next_obs.shape) == len(act.shape) == 2
+
+            done = np.zeros((len(obs), 1))  
+            return done
+        return terminaltion_fn
+    elif 'RandomFrictionHopper' in task:
+        from neorl2.envs.terminated.randomfrictionhopper_terminated import get_terminated
+        
+        def terminaltion_fn(obs, act, next_obs):
+            data = {
+                "obs" : obs,
+                "action" : act,
+                "next_obs" : next_obs,
+            }
+            return np.bool_(get_terminated(data))
+        
+        return terminaltion_fn
+    elif 'Simglucose' in task:
+        from neorl2.envs.terminated.simglucose_terminated import get_terminated
+        
+        def terminaltion_fn(obs, act, next_obs):
+            data = {
+                "obs" : obs,
+                "action" : act,
+                "next_obs" : next_obs,
+            }
+            return np.bool_(get_terminated(data))
+        
+        return terminaltion_fn
+    elif 'RocketRecovery' in task:
+        from neorl2.envs.terminated.rocketrecovery_terminated import get_terminated
+        
+        def terminaltion_fn(obs, act, next_obs):
+            data = {
+                "obs" : obs,
+                "action" : act,
+                "next_obs" : next_obs,
+            }
+            return np.bool_(get_terminated(data))
+        
+        return terminaltion_fn
+        
     else:
-        raise np.zeros
+        raise NotImplementedError(f"Task {task} not implemented")

@@ -4,6 +4,7 @@ import pickle
 import gzip
 import pdb
 import numpy as np
+from offlinerl.data import load_data_from_neorl2, load_data_from_neorl2_util
 import torch
 torch.set_default_tensor_type(torch.FloatTensor)
 
@@ -27,21 +28,32 @@ def allocate_hidden_state(replay_pool_full_traj, get_action, make_hidden):
     state = replay_pool_full_traj
     pass
 
-def restore_pool_d4rl(replay_pool, name, adapt=True, maxlen=5, policy_hook=None,value_hook=None,device=None,fake_env=None):
+def data_loader_utils(name):
     import gym
     import d4rl
+    traj_lens = None
     if 'sac_data' in name:
         npz_data = np.load(f'../data/{name[9:]}')
         data = {}
         for k in npz_data.keys():
             data[k] = npz_data[k]
+    elif 'neorl2' in name:
+        train_data, val_data = load_data_from_neorl2_util(name[7:])
+        data = {}
+        data['observations'] = train_data['obs']
+        data['rewards'] = train_data['reward']
+        data['terminals'] = train_data['done']
+        data['next_observations'] = train_data['next_obs']
+        data['actions'] = train_data['action']
+        indices = np.where(np.logical_or(train_data['truncated'] == 1, train_data['done']==1))[0]
+        indices = np.append([0], indices+1)
+        traj_lens = list(np.diff(indices))
     else:
         env = gym.make(name)
         is_hopper_medium = name == 'hopper-medium-v0'
         is_hopper_med_expert = name == 'hopper-medium-expert-v0'
         illed_idx_hopper_medium = [113488, 171088, 294360, 381282, 389466, 703200, 871770, 995870]
         illed_idx_hopper_medium_exp = get_illed_med_exp()
-
         mask_steps = env._max_episode_steps - 1
         data = d4rl.qlearning_dataset(gym.make(name))
         if is_hopper_medium:
@@ -51,8 +63,6 @@ def restore_pool_d4rl(replay_pool, name, adapt=True, maxlen=5, policy_hook=None,
             for k in data:
                 data[k] = np.delete(data[k], illed_idx_hopper_medium_exp, axis=0)
 
-    get_policy_hidden = policy_hook if policy_hook else None
-    get_value_hidden = value_hook if value_hook else None
     data['rewards'] = np.expand_dims(data['rewards'], axis=1)
     data['terminals'] = np.expand_dims(data['terminals'], axis=1)
     data['last_actions'] = np.concatenate((np.zeros((1, data['actions'].shape[1]), dtype=np.float32), data['actions'][:-1, :]), axis=0).copy()
@@ -62,12 +72,19 @@ def restore_pool_d4rl(replay_pool, name, adapt=True, maxlen=5, policy_hook=None,
     max_traj_len = -1
     last_start = 0
     traj_num = 1
-    traj_lens = []
+    if traj_lens is None:
+        traj_lens = []
+        gen_traj_len = True
+    else:
+        gen_traj_len = False
     ill_idxs = []
     for i in range(data['observations'].shape[0]):
         non_terminal = True
         if i >= 1:
-            non_terminal = (data['observations'][i] == data['next_observations'][i-1]).all()
+            if gen_traj_len:
+                non_terminal = (data['observations'][i] == data['next_observations'][i-1]).all()
+            else:
+                non_terminal = i - last_start != traj_lens[traj_num-1]
             if data['terminals'][i-1]:
                 non_terminal = False
 
@@ -80,13 +97,100 @@ def restore_pool_d4rl(replay_pool, name, adapt=True, maxlen=5, policy_hook=None,
             traj_len = i - last_start
             max_traj_len = max(max_traj_len, traj_len)
             last_start = i
+            if gen_traj_len:
+                traj_lens.append(traj_len)
+            else:
+                assert traj_len == traj_lens[traj_num - 1]
             traj_num += 1
-            traj_lens.append(traj_len)
             if traj_len > 1000:
                 print('[ DEBUG + WARN ]: trajectory length is too large: current step is ', i, traj_num,)
     print(ill_idxs)
-    traj_lens.append(data['observations'].shape[0] - last_start)
+    if gen_traj_len:
+        traj_lens.append(data['observations'].shape[0] - last_start)
     assert len(traj_lens) == traj_num
+    return data, traj_lens, traj_num, max_traj_len
+    
+def restore_pool_d4rl(replay_pool, name, adapt=True, maxlen=5, policy_hook=None, value_hook=None,device=None,fake_env=None):
+    # import gym
+    # import d4rl
+    # traj_lens = None
+    # if 'sac_data' in name:
+    #     npz_data = np.load(f'../data/{name[9:]}')
+    #     data = {}
+    #     for k in npz_data.keys():
+    #         data[k] = npz_data[k]
+    # elif 'neorl2' in name:
+    #     train_data, val_data = load_data_from_neorl2_util(name[7:])
+    #     data['observations'] = train_data['obs']
+    #     data['rewards'] = train_data['reward']
+    #     data['terminals'] = train_data['done']
+    #     data['next_observations'] = train_data['next_obs']
+    #     data['actions'] = train_data['action']
+    #     indices = np.where(train_data['truncated'] == 1)[0]
+    #     traj_lens = np.diff(indices) - 1
+    # else:
+    #     env = gym.make(name)
+    #     is_hopper_medium = name == 'hopper-medium-v0'
+    #     is_hopper_med_expert = name == 'hopper-medium-expert-v0'
+    #     illed_idx_hopper_medium = [113488, 171088, 294360, 381282, 389466, 703200, 871770, 995870]
+    #     illed_idx_hopper_medium_exp = get_illed_med_exp()
+    #     mask_steps = env._max_episode_steps - 1
+    #     data = d4rl.qlearning_dataset(gym.make(name))
+    #     if is_hopper_medium:
+    #         for k in data:
+    #             data[k] = np.delete(data[k], illed_idx_hopper_medium, axis=0)
+    #     if is_hopper_med_expert:
+    #         for k in data:
+    #             data[k] = np.delete(data[k], illed_idx_hopper_medium_exp, axis=0)
+
+    # data['rewards'] = np.expand_dims(data['rewards'], axis=1)
+    # data['terminals'] = np.expand_dims(data['terminals'], axis=1)
+    # data['last_actions'] = np.concatenate((np.zeros((1, data['actions'].shape[1]), dtype=np.float32), data['actions'][:-1, :]), axis=0).copy()
+    # data['first_step'] = np.zeros_like(data['terminals'])
+    # data['end_step'] = np.zeros_like(data['terminals'])
+    # data['valid'] = np.ones_like(data['terminals'])
+    # max_traj_len = -1
+    # last_start = 0
+    # traj_num = 1
+    # if traj_lens is None:
+    #     traj_lens = []
+    #     gen_traj_len = True
+    # else:
+    #     gen_traj_len = False
+    # ill_idxs = []
+    # for i in range(data['observations'].shape[0]):
+    #     non_terminal = True
+    #     if i >= 1:
+    #         if gen_traj_len:
+    #             non_terminal = (data['observations'][i] == data['next_observations'][i-1]).all()
+    #         else:
+    #             non_terminal = i - last_start != traj_len[traj_num]
+    #         if data['terminals'][i-1]:
+    #             non_terminal = False
+
+    #     if not non_terminal:
+    #         if data['terminals'][i - 1]:
+    #             data['next_observations'][i - 1] = data['observations'][i - 1]
+    #         data['last_actions'][i][:] = 0
+    #         data['first_step'][i][:] = 1
+    #         data['end_step'][i-1][:] = 1
+    #         traj_len = i - last_start
+    #         max_traj_len = max(max_traj_len, traj_len)
+    #         last_start = i
+    #         if gen_traj_len:
+    #             traj_lens.append(traj_len)
+    #         else:
+    #             assert traj_len == traj_lens[traj_num]
+    #         traj_num += 1
+    #         if traj_len > 1000:
+    #             print('[ DEBUG + WARN ]: trajectory length is too large: current step is ', i, traj_num,)
+    # print(ill_idxs)
+    # traj_lens.append(data['observations'].shape[0] - last_start)
+    # assert len(traj_lens) == traj_num
+    data, traj_lens, traj_num, max_traj_len = data_loader_utils(name)
+    get_policy_hidden = policy_hook if policy_hook else None
+    get_value_hidden = value_hook if value_hook else None
+
     if adapt and policy_hook is not None:
         # making init hidden state
         # 1, making state and lst action
@@ -154,69 +258,13 @@ def restore_pool_d4rl(replay_pool, name, adapt=True, maxlen=5, policy_hook=None,
     replay_pool.add_samples(data)
 
 def reset_hidden_state(replay_pool, name, maxlen=5, policy_hook=None, value_hook = None,device=None, fake_env=None):
-    import gym
-    import d4rl
-    if 'sac_data' in name:
-        npz_data = np.load(f'../data/{name[9:]}')
-        data = {}
-        for k in npz_data.keys():
-            data[k] = npz_data[k]
-    else:
-        env = gym.make(name)
-        is_hopper_medium = name == 'hopper-medium-v0'
-        is_hopper_med_expert = name == 'hopper-medium-expert-v0'
-        illed_idx_hopper_medium = [113488, 171088, 294360, 381282, 389466, 703200, 871770, 995870]
-        illed_idx_hopper_medium_exp = get_illed_med_exp()
-
-        # mask_steps = env._max_episode_steps - 1
-        data = d4rl.qlearning_dataset(gym.make(name))
-        if is_hopper_medium:
-            for k in data:
-                data[k] = np.delete(data[k], illed_idx_hopper_medium, axis=0)
-        if is_hopper_med_expert:
-            for k in data:
-                data[k] = np.delete(data[k], illed_idx_hopper_medium_exp, axis=0)
-    get_policy = policy_hook if policy_hook else None
-    get_value = value_hook if value_hook else None
-    data['rewards'] = np.expand_dims(data['rewards'], axis=1)
-    data['terminals'] = np.expand_dims(data['terminals'], axis=1)
-    data['last_actions'] = np.concatenate((np.zeros((1, data['actions'].shape[1]), dtype=np.float32), data['actions'][:-1, :]),
-                                          axis=0).copy()
-    data['first_step'] = np.zeros_like(data['terminals'])
-    data['end_step'] = np.zeros_like(data['terminals'])
-    data['valid'] = np.ones_like(data['terminals'])
-    print('[ DEBUG ] reset_hidden_state: key in data: {}'.format(list(data.keys())))
-    max_traj_len = -1
-    last_start = 0
-    traj_num = 1
-    traj_lens = []
-    print('[ DEBUG ] reset_hidden_state, obs shape: ', data['observations'].shape)
-    for i in range(data['observations'].shape[0]):
-        flag = True
-        if i >= 1:
-            flag = (data['observations'][i] == data['next_observations'][i - 1]).all()
-            if data['terminals'][i - 1]:
-                flag = False
-        if not flag:
-            data['last_actions'][i, :] = 0
-            data['first_step'][i, :] = 1
-            data['end_step'][i - 1, :] = 1
-            if data['terminals'][i - 1]:
-                data['next_observations'][i-1] = data['observations'][i-1]
-            traj_len = i - last_start
-            max_traj_len = max(max_traj_len, traj_len)
-            last_start = i
-            traj_num += 1
-            traj_lens.append(traj_len)
-            if traj_len > 1000:
-                print('[ DEBUG + WARN ] reset_hidden_state: trajectory length is too large: current step is ', i, traj_num, )
-    traj_lens.append(data['observations'].shape[0] - last_start)
-    assert len(traj_lens) == traj_num
+    get_policy = policy_hook
+    get_value = value_hook
+    data, traj_lens, traj_num, max_traj_len = data_loader_utils(name)
     data['policy_hidden'] = None # np.zeros((data['last_actions'].shape[0], policy_hidden.shape[-1]))
     data['value_hidden'] = None # np.zeros((data['last_actions'].shape[0], value_hidden.shape[-1]))
     last_start_ind = 0
     traj_num_to_infer = 400
-
     for i_ter in range(int(np.ceil(traj_num / traj_num_to_infer))):
         traj_lens_it = traj_lens[traj_num_to_infer * i_ter : min(traj_num_to_infer * (i_ter + 1), traj_num)]
         states = np.zeros((len(traj_lens_it), max_traj_len, data['observations'].shape[-1]), dtype=np.float32)

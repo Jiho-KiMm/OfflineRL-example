@@ -1,6 +1,7 @@
 import os
 import pickle
 
+from d4rl import gym_mujoco
 import gym
 import d4rl
 import numpy as np

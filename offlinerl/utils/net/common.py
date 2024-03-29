@@ -74,8 +74,6 @@ class Net(nn.Module):
             model += miniblock(
                 hidden_layer_size, hidden_layer_size, norm_layer)
             
-        
-
         if dueling is None:
             if action_shape and not concat:
                 model += [nn.Linear(hidden_layer_size, np.prod(action_shape))]
@@ -100,6 +98,8 @@ class Net(nn.Module):
         if self.output_shape:
             model +=  [nn.Linear(hidden_layer_size, output_shape)]
         self.model = nn.Sequential(*model)
+        
+        self.s_mean, self.s_std = 0, 1
 
     def forward(
         self,
@@ -110,6 +110,10 @@ class Net(nn.Module):
         """Mapping: s -> flatten -> logits."""
 
         s = s.reshape(s.size(0), -1)
+        try:
+            s = (s - self.s_mean.to(s.device)) / self.s_std.to(s.device)
+        except:
+            pass
         logits = self.model(s)
         if self.dueling is not None:  # Dueling DQN
             q, v = self.Q(logits), self.V(logits)

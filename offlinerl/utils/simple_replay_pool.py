@@ -129,7 +129,6 @@ class SimpleReplayTrajPool(FlexibleReplayPool):
         self._action_space = action_space
         self.max_traj_len = max_traj_len
         self.hidden_length = hidden_length
-
         fields = {
             'actions': {
                 'shape': (self.max_traj_len, *self._action_space.shape),

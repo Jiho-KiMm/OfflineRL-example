@@ -3,7 +3,7 @@ import numpy as np
 from copy import deepcopy
 from loguru import logger
 import ray
-
+import os
 from offlinerl.utils.env import get_env
 from offlinerl.algo.base import BaseAlgo
 from collections import OrderedDict
@@ -12,8 +12,7 @@ from offlinerl.utils.net.common import MLP, Net
 from offlinerl.utils.net.tanhpolicy import TanhGaussianPolicy
 from offlinerl.utils.exp import setup_seed
 import offlinerl.utils.loader as loader
-from offlinerl.utils.net.terminal_check import is_terminal
-
+from offlinerl.utils.net.terminal_check import get_termination_fn
 from offlinerl.utils.data import ModelBuffer
 from offlinerl.utils.net.model.ensemble import EnsembleTransition
 from offlinerl.utils.net.model_GRU import GRU_Model
@@ -32,23 +31,23 @@ def algo_init(args):
     elif "task" in args.keys():
         from offlinerl.utils.env import get_env_shape, get_env_obs_act_spaces
         obs_shape, action_shape = get_env_shape(args['task'])
-        obs_space, action_space = get_env_obs_act_spaces(args['task'])
-        args["obs_shape"], args["action_shape"] = obs_shape, action_shape
-        args['obs_space'], args['action_space'] = obs_space, action_space
+        # obs_space, action_space = get_env_obs_act_spaces(args['task'])
+        # args["obs_shape"], args["action_shape"] = obs_shape, action_shape
+        # args['obs_space'], args['action_space'] = obs_space, action_space
     else:
         raise NotImplementedError
-
-    args['data_name'] = args['task'][5:]
+    if 'data_name' not in args:
+        args['data_name'] = args['task'][5:]
 
     transition = EnsembleTransition(obs_shape, action_shape, args['hidden_layer_size'], args['transition_layers'],
                                     args['transition_init_num'], mode=args['mode']).to(args['device'])
     transition_optim = torch.optim.AdamW(transition.parameters(), lr=args['transition_lr'], weight_decay=0.000075)
 
-    policy_gru = GRU_Model(args['obs_shape'], args['action_shape'], args['device'],args['lstm_hidden_unit']).to(args['device'])
-    value_gru = GRU_Model(args['obs_shape'], args['action_shape'], args['device'], args['lstm_hidden_unit']).to(args['device'])
-    actor = Maple_actor(args['obs_shape'], args['action_shape']).to(args['device'])
-    q1 = Maple_critic(args['obs_shape'], args['action_shape']).to(args['device'])
-    q2 = Maple_critic(args['obs_shape'], args['action_shape']).to(args['device'])
+    policy_gru = GRU_Model(obs_shape, action_shape, args['device'],args['lstm_hidden_unit']).to(args['device'])
+    value_gru = GRU_Model(obs_shape, action_shape, args['device'], args['lstm_hidden_unit']).to(args['device'])
+    actor = Maple_actor(obs_shape, action_shape).to(args['device'])
+    q1 = Maple_critic(obs_shape, action_shape).to(args['device'])
+    q2 = Maple_critic(obs_shape, action_shape).to(args['device'])
 
     actor_optim = torch.optim.Adam([*policy_gru.parameters(),*actor.parameters()], lr=args['actor_lr'])
 
@@ -65,6 +64,11 @@ def algo_init(args):
     }
 
 
+def shuffle_rows(arr):
+    idxs = np.argsort(np.random.uniform(size=arr.shape), axis=-1)
+    return arr[np.arange(arr.shape[0])[:, None], idxs]
+    
+    
 class AlgoTrainer(BaseAlgo):
     def __init__(self, algo_init, args):
         super(AlgoTrainer, self).__init__(args)
@@ -84,18 +88,24 @@ class AlgoTrainer(BaseAlgo):
         self.target_q1 = deepcopy(self.q1)
         self.target_q2 = deepcopy(self.q2)
         self.critic_optim = algo_init['critic']['opt']
-
+        from offlinerl.utils.env import get_env_shape, get_env_obs_act_spaces
+        obs_shape, action_shape = get_env_shape(args['task'])
+        obs_space, action_space = get_env_obs_act_spaces(args['task'])
         self.device = args['device']
-        self.obs_space = args['obs_space']
-        self.action_space = args['action_space']
+        self.obs_space = obs_space
+        self.action_space = action_space
 
         self.args['buffer_size'] = int(self.args['data_collection_per_epoch']) * self.args['horizon'] * 5
-        self.args['target_entropy'] = - self.args['action_shape']
+        self.args['target_entropy'] = - action_shape
         self.args['model_pool_size'] = int(args['model_pool_size'])
+        terminal_fn = get_termination_fn(args['task'])
+        self.is_terminal = lambda obs, act, next_obs: terminal_fn(obs, act, next_obs).astype(bool)
+        self.action_shape = action_shape
+        self.obs_shape = obs_shape
 
     def train(self, train_buffer, val_buffer, callback_fn):
         self.transition.update_self(torch.cat((torch.Tensor(train_buffer["obs"]), torch.Tensor(train_buffer["obs_next"])), 0))
-        if self.args['dynamics_path'] is not None:
+        if self.args['dynamics_path'] is not None and os.path.exists(self.args['dynamics_path']):
             self.transition = torch.load(self.args['dynamics_path'], map_location='cpu').to(self.device)
         else:
             self.train_transition(train_buffer)
@@ -110,7 +120,7 @@ class AlgoTrainer(BaseAlgo):
         self.model_pool = SimpleReplayTrajPool(self.obs_space, self.action_space, self.args['horizon'],\
                                                self.args['lstm_hidden_unit'],self.args['model_pool_size'])
 
-        loader.restore_pool_d4rl(self.env_pool, self.args['data_name'],adapt=True,\
+        loader.restore_pool_d4rl(self.env_pool, self.args['data_name'], adapt=True,\
                                  maxlen=self.args['horizon'],policy_hook=self.policy_gru,\
                                  value_hook=self.value_gru, device=self.device)
         torch.cuda.empty_cache()
@@ -120,8 +130,8 @@ class AlgoTrainer(BaseAlgo):
         soft_expanding = expert_range * 0.05
         self.obs_max += soft_expanding
         self.obs_min -= soft_expanding
-        self.obs_max = np.maximum(self.obs_max, 100)
-        self.obs_min = np.minimum(self.obs_min, -100)
+        # self.obs_max = np.maximum(self.obs_max, 100)
+        # self.obs_min = np.minimum(self.obs_min, -100)
 
         self.rew_max = train_buffer['rew'].max()
         self.rew_min = train_buffer['rew'].min() - self.args['penalty_clip'] * self.args['lam']
@@ -139,9 +149,7 @@ class AlgoTrainer(BaseAlgo):
                 batch = self.get_train_policy_batch(self.args['train_batch_size'])
                 in_res = self.train_policy(batch)
                 for key in in_res:
-                    train_loss[key] = train_loss[key] + in_res[key]
-            for k in train_loss:
-                train_loss[k] = train_loss[k]/self.args['in_train_epoch']
+                    train_loss[key] = train_loss[key] + in_res[key]/self.args['in_train_epoch']
             
             # evaluate in mujoco
             eval_loss = self.eval_policy()
@@ -200,7 +208,7 @@ class AlgoTrainer(BaseAlgo):
         if deterministic:
             return mu_res, hidden_policy_res
         else:
-            return action_res , hidden_policy_res
+            return action_res, hidden_policy_res
 
     def train_transition(self, buffer):
         data_size = len(buffer)
@@ -223,6 +231,7 @@ class AlgoTrainer(BaseAlgo):
                 batch = train_buffer[batch_idxs]
                 self._train_transition(self.transition, batch, self.transition_optim)
             new_val_losses = list(self._eval_transition(self.transition, valdata, inc_var_loss=False).cpu().numpy())
+            idxs = shuffle_rows(idxs)
             print(new_val_losses)
 
             indexes = []
@@ -272,18 +281,38 @@ class AlgoTrainer(BaseAlgo):
             for i in range(self.args['horizon']):
                 act, hidden_policy = self.get_meta_action(obs, hidden, deterministic)
                 obs_action = torch.cat([obs,act], dim=-1)
-                next_obs_dists = self.transition(obs_action)
-                next_obses = next_obs_dists.sample()
+                # protect the model rollout from OOM error
+
+                if self.args['mini_forward_size'] > 0 and obs_action.shape[0] > self.args['mini_forward_size']:
+                    num_batches = int(np.ceil(obs_action.shape[0] / self.args['mini_forward_size']))
+                    next_obses = []
+                    next_obses_mode = []
+                    next_obses_std = []
+                    for j in range(num_batches):
+                        next_obs_dists = self.transition(obs_action[j*self.args['mini_forward_size']:(j+1)*self.args['mini_forward_size']])
+                        next_obses.append(next_obs_dists.sample())
+                        next_obses_mode.append(next_obs_dists.mean[:, :, :-1])
+                        next_obses_std.append(next_obs_dists.stddev)
+                    next_obses = torch.cat(next_obses, dim=1)
+                    next_obses_mode = torch.cat(next_obses_mode, dim=1)
+                    next_obses_std = torch.cat(next_obses_std, dim=1)
+                else:
+                    next_obs_dists = self.transition(obs_action)
+                    next_obses = next_obs_dists.sample()
+                    next_obses_mode = next_obs_dists.mean[:, :, :-1]
+                    next_obses_std = next_obs_dists.stddev
+
+                # next_obs_dists = self.transition(obs_action)
+                # next_obses_mode = next_obs_dists.mean[:, :, :-1]
+                # next_obses_std = next_obs_dists.stddev
                 rewards = next_obses[:, :, -1:]
                 next_obses = next_obses[:, :, :-1]
 
-                next_obses_mode = next_obs_dists.mean[:, :, :-1]
                 next_obs_mean = torch.mean(next_obses_mode, dim=0)
                 diff = next_obses_mode - next_obs_mean
                 disagreement_uncertainty = torch.max(torch.norm(diff, dim=-1, keepdim=True), dim=0)[0]
-                aleatoric_uncertainty = torch.max(torch.norm(next_obs_dists.stddev, dim=-1, keepdim=True), dim=0)[0]
-                uncertainty = disagreement_uncertainty if self.args[
-                                                              'uncertainty_mode'] == 'disagreement' else aleatoric_uncertainty
+                aleatoric_uncertainty = torch.max(torch.norm(next_obses_std, dim=-1, keepdim=True), dim=0)[0]
+                uncertainty = disagreement_uncertainty if self.args['uncertainty_mode'] == 'disagreement' else aleatoric_uncertainty
                 uncertainty = torch.clamp(uncertainty, max=self.args['penalty_clip'])
                 uncertainty_list.append(uncertainty.mean().item())
                 uncertainty_max.append(uncertainty.max().item())
@@ -292,7 +321,7 @@ class AlgoTrainer(BaseAlgo):
                 next_obs = next_obses[model_indexes, np.arange(obs.shape[0])]
                 reward = rewards[model_indexes, np.arange(obs.shape[0])]
 
-                term = is_terminal(obs.cpu().numpy(), act.cpu().numpy(), next_obs.cpu().numpy(), self.args['task'])
+                term = self.is_terminal(obs.cpu().numpy(), act.cpu().numpy(), next_obs.cpu().numpy())
                 next_obs = torch.clamp(next_obs, obs_min, obs_max)
                 reward = torch.clamp(reward, rew_min, rew_max)
 
@@ -312,6 +341,8 @@ class AlgoTrainer(BaseAlgo):
                 num_samples = samples['observations'].shape[0]
                 index = np.arange(
                     self.model_pool._pointer, self.model_pool._pointer + num_samples) % self.model_pool._max_size
+                # import pdb 
+                # pdb.set_trace()
                 for k in samples:
                     self.model_pool.fields[k][index, i] = samples[k][:, 0]
                 current_nonterm = current_nonterm & nonterm_mask
@@ -321,6 +352,7 @@ class AlgoTrainer(BaseAlgo):
             self.model_pool._pointer += num_samples
             self.model_pool._pointer %= self.model_pool._max_size
             self.model_pool._size = min(self.model_pool._max_size, self.model_pool._size + num_samples)
+
         return np.mean(uncertainty_list), np.max(uncertainty_max)
 
 
@@ -358,7 +390,7 @@ class AlgoTrainer(BaseAlgo):
             alpha = torch.exp(self.log_alpha)
             Q_target = Q_target - alpha*torch.unsqueeze(log_p_act_target,dim=-1)
             Q_target = batch['rewards'] + self.args['discount']*(~batch['terminals'])*(Q_target)
-            Q_target = torch.clip(Q_target,self.rew_min/(1-self.args['discount']),\
+            Q_target = torch.clamp(Q_target,self.rew_min/(1-self.args['discount']),\
                                   self.rew_max/(1-self.args['discount']))
 
         q1_loss = torch.sum(((q1-Q_target)**2)*batch['valid'])/valid_num
@@ -447,7 +479,10 @@ class AlgoTrainer(BaseAlgo):
 
         res = OrderedDict()
         res["Reward_Mean_Env"] = rew_mean
-        res["Score"] = env.get_normalized_score(rew_mean)
+        try:
+            res["Score"] = env.get_normalized_score(rew_mean)
+        except AttributeError:
+            pass
         res["Length_Mean_Env"] = len_mean
 
         return res
@@ -456,7 +491,10 @@ class AlgoTrainer(BaseAlgo):
         env = deepcopy(env)
         with torch.no_grad():
             state, done = env.reset(), False
-            lst_action = torch.zeros((1,1,self.args['action_shape'])).to(self.device)
+            if isinstance(state, tuple):
+                # neorl2 reset returns a tuple
+                state = state[0]
+            lst_action = torch.zeros((1,1,self.action_shape)).to(self.device)
             hidden_policy = torch.zeros((1,1,self.args['lstm_hidden_unit'])).to(self.device)
             rewards = 0
             lengths = 0
@@ -466,7 +504,12 @@ class AlgoTrainer(BaseAlgo):
                 hidden = (hidden_policy, lst_action)
                 action, hidden_policy = self.get_meta_action(state, hidden, deterministic=True)
                 use_action = action.cpu().numpy().reshape(-1)
-                state_next, reward, done, _ = env.step(use_action)
+                result = env.step(use_action)
+                if len(result) == 4:
+                    state_next, reward, done, _ = result
+                else:
+                    state_next, reward, done, timeout,_ = result
+                    done = done or timeout
                 lst_action = action
                 state = state_next
                 rewards += reward
@@ -479,7 +522,10 @@ class AlgoTrainer(BaseAlgo):
         env = deepcopy(env)
         with torch.no_grad():
             state, done = env.reset(), False
-            lst_action = torch.zeros((1,1,self.args['action_shape'])).to(self.device)
+            if isinstance(state, tuple):
+                # neorl2 reset returns a tuple
+                state = state[0]
+            lst_action = torch.zeros((1,1,self.action_shape)).to(self.device)
             hidden_policy = torch.zeros((1,1,self.args['lstm_hidden_unit'])).to(self.device)
             rewards = 0
             lengths = 0
@@ -493,7 +539,12 @@ class AlgoTrainer(BaseAlgo):
                 mu_list.append(mu.cpu().numpy())
                 std_list.append(std.cpu().numpy())
                 use_action = action.cpu().numpy().reshape(-1)
-                state_next, reward, done, _ = env.step(use_action)
+                result = env.step(use_action)
+                if len(result) == 4:
+                    state_next, reward, done, _ = result
+                else:
+                    state_next, reward, done, timeout,_ = result
+                    done = done or timeout
                 lst_action = action
                 state = state_next
                 rewards += reward

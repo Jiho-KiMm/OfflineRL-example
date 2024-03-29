@@ -6,6 +6,7 @@ from offlinerl.algo.base import BaseAlgo
 from offlinerl.utils.net.continuous import GaussianActor
 from offlinerl.utils.exp import setup_seed
 
+
 def algo_init(args):
     logger.info('Run algo_init function')
 
@@ -23,7 +24,6 @@ def algo_init(args):
         raise NotImplementedError
 
     actor = GaussianActor(obs_shape, action_shape, args['actor_features'], args['actor_layers']).to(args['device'])
-
     actor_optim = torch.optim.Adam(actor.parameters(), lr=args['actor_lr'])
 
     return {
@@ -46,6 +46,13 @@ class AlgoTrainer(BaseAlgo):
         self.best_loss = float('inf')
         
     def train(self, train_buffer, val_buffer, callback_fn):
+        if val_buffer == None:
+            from offlinerl.utils.data import SampleBatch
+            ori_buffer = deepcopy(train_buffer)
+            sep_len = int(len(ori_buffer)*0.1)
+            val_buffer = SampleBatch(ori_buffer[-sep_len:])
+            train_buffer = SampleBatch(ori_buffer[:-sep_len])
+            # breakpoint()
         for epoch in range(self.args['max_epoch']):
             for i in range(self.args['steps_per_epoch']):
                 batch_data = train_buffer.sample(self.batch_size)
@@ -54,7 +61,8 @@ class AlgoTrainer(BaseAlgo):
                 action = batch_data['act']
 
                 action_dist = self.actor(obs)
-                loss = - action_dist.log_prob(action).mean()
+                # loss = - action_dist.log_prob(action).mean()
+                loss = ((action_dist.mode - action) ** 2).mean()
 
                 self.actor_optim.zero_grad()
                 loss.backward()
@@ -75,9 +83,13 @@ class AlgoTrainer(BaseAlgo):
                 self.best_loss = val_loss
                 self.best_actor.load_state_dict(self.actor.state_dict())
 
-            res = callback_fn(self.get_policy())
+            val_frequency = self.args.get("val_frequency",1)
+            if (epoch+1) % val_frequency == 0:
+                res = callback_fn(self.get_policy())
+            else:
+                res = {}
             res['loss'] = val_loss
-            
+
             self.log_res(epoch, res)
 
         return self.get_policy()

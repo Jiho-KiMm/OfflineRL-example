@@ -323,6 +323,14 @@ class AlgoTrainer(BaseAlgo):
         self._n_train_steps_total += 1
         if self._current_epoch % 1000 == 0:
             logger.info('Pi loss and critic loss: {}, {}, {}'.format(policy_loss.item(), qf1_loss.item(), qf2_loss.item()))
+            
+        return {
+            "policy_loass" : policy_loss.item(),
+            "q1_loss" : qf1_loss.item(),
+            "q2_loss" : qf2_loss.item(),
+            "alpha_loss" : alpha_loss.item(),
+            "alpha" : alpha.item(),
+        }
 
         
     def get_model(self):
@@ -338,10 +346,15 @@ class AlgoTrainer(BaseAlgo):
         for epoch in range(1,self.args["max_epoch"]+1):
             for step in range(1,self.args["steps_per_epoch"]+1):
                 train_data = train_buffer.sample(self.args["batch_size"])
-                self._train(train_data)
+                loss = self._train(train_data)
             
-            res = callback_fn(self.get_policy())
-
+            val_frequency = self.args.get("val_frequency",1)
+            if (epoch+1) % val_frequency == 0:
+                res = callback_fn(self.get_policy())
+            else:
+                res = {}
+            res.update(loss)
+            
             self.log_res(epoch, res)
             
         return self.get_policy()

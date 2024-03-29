@@ -47,8 +47,14 @@ pip install -e .
 # Training in HalfCheetah-v3-L-9 task using default parameters of cql algorithm
 python examples/train_task.py --algo_name=cql --exp_name=halfcheetah --task HalfCheetah-v3 --task_data_type low --task_train_num 100
 
+# Training in SafetyHalfCheetahtask using default parameters of cql algorithm
+python examples/train_task.py --algo_name=mcq --exp_name=SafetyHalfCheetah --task SafetyHalfCheetah 
+
 # Parameter search in the default parameter space using the cql algorithm in the HalfCheetah-v3-L-9 task
 python examples/train_tune.py --algo_name=cql --exp_name=halfcheetah --task HalfCheetah-v3 --task_data_type low --task_train_num 100
+
+# Parameter search in the default parameter space using the cql algorithm in the SafetyHalfCheetahtask task
+# python examples/train_tune.py --algo_name=mcq --exp_name=SafetyHalfCheetah --task SafetyHalfCheetah 
 
 # Training in D4RL halfcheetah-medium task using default parameters of cql algorithm (D4RL need to be installed)
 python examples/train_d4rl.py --algo_name=cql --exp_name=d4rl-halfcheetah-medium-cql --task d4rl-halfcheetah-medium-v0
@@ -73,3 +79,25 @@ cd offlinerl_tmp
 aim up
 ```
 Then you can see the results on http://127.0.0.1:43800.
+
+
+## Model-based Running Example
+
+```python
+# Tune and save the transition models
+python examples/model_tune.py --algo_name bc_model --exp_name neorl-RandomFrictionHopper-model --task RandomFrictionHopper
+```
+
+```python
+# Training MOPO and load the best transition model
+python examples/train_task.py --algo_name mopo --exp_name neorl-safecheetah-mopo-new --task SafetyHalfCheetah --dynamics_path best_run_id
+
+# Training COMBO and load the best transition model
+python examples/train_task.py --algo_name combo --exp_name neorl-safecheetah-combo-new --task SafetyHalfCheetah --dynamics_path best_run_id
+
+# Training RAMBO and load the best transition model
+python examples/train_task.py --algo_name rambo --exp_name neorl-safecheetah-rambo-new --task SafetyHalfCheetah --dynamics_path best_run_id
+
+# Training MOBILE and load the best transition model
+python examples/train_task.py --algo_name mobile --exp_name neorl-safecheetah-mobile-new --task SafetyHalfCheetah --dynamics_path best_run_id
+```

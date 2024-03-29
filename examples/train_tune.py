@@ -17,9 +17,11 @@ def training_function(config):
     callback = OnlineCallBackFunction()
     callback.initialize(train_buffer=train_buffer, val_buffer=val_buffer, task=algo_config["task"])
 
-    score = algo_trainer.train(train_buffer, val_buffer, callback_fn=callback)
+    score = algo_trainer.train(train_buffer, None, callback_fn=callback)
     
-    return score
+    # return score
+    return 0
+
 
 def run_algo(**kwargs):
     config = {}
@@ -31,12 +33,11 @@ def run_algo(**kwargs):
     grid_tune = algo_config["grid_tune"]
     for k,v in grid_tune.items():
         config[k] = tune.grid_search(v)
-    
+
     analysis = tune.run(
         training_function,
         config=config,
-        resources_per_trial={"gpu": 1},
-        queue_trials = True,
+        resources_per_trial={"gpu": 0.333333},
         )
 
     

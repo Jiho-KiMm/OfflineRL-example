@@ -17,7 +17,7 @@ actor_layers = 2
 
 batch_size = 256
 steps_per_epoch = 1000
-max_epoch = 100
+max_epoch = 1000
 
 actor_lr = 1e-3
 
@@ -28,5 +28,7 @@ params_tune = {
 
 #tune
 grid_tune = {
-    "actor_lr" : [1e-3],
+    "actor_lr" : [1e-4, 5e-4, 1e-3],
+    "actor_layers" : [2,3],
 }
+
