@@ -12,7 +12,7 @@ obs_shape = None
 act_shape = None
 max_action = None
 
-max_epoch = 300
+max_epoch = 1000
 steps_per_epoch = 1000
 policy_bc_steps = 40000
 
@@ -32,7 +32,6 @@ explore=1.0
 temp=1.0
 min_q_version=3
 min_q_weight=5.0
-
 # lagrange
 with_lagrange=False
 lagrange_thresh=2.0

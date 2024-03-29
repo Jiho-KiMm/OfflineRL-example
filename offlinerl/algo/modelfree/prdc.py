@@ -16,6 +16,7 @@ from offlinerl.algo.base import BaseAlgo
 from offlinerl.utils.net.common import MLP
 from offlinerl.utils.exp import setup_seed
 
+
 class Actor(nn.Module):
     def __init__(self, state_dim, action_dim, max_action, device):
         super(Actor, self).__init__()
@@ -67,41 +68,6 @@ class Critic(nn.Module):
 class PRDCPolicy(torch.nn.Module):
     def __init__(self, args):
         super().__init__()
-        # device = args['device']
-        # state_dim = args['state_dim']
-        # action_dim = args['action_dim']
-        # max_action = args['max_action']
-        # discount = args['discount']
-        # tau = args['tau']
-        # policy_noise = args['policy_noise']
-        # noise_clip = args['noise_clip']
-        # alpha = args['alpha'] 
-        # policy_freq = args['policy_freq']
-        # beta = args['beta']
-        # k = args['k']
-        # actor_lr = args['actor_lr']
-        # critic_lr = args['critic_lr']
-
-        # self.device = torch.device(device)
-        # self.actor = Actor(state_dim, action_dim, max_action, device).to(self.device)
-        # self.actor_target = copy.deepcopy(self.actor)
-        # self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=actor_lr)
-        # self.critic = Critic(state_dim, action_dim).to(self.device)
-        # self.critic_target = copy.deepcopy(self.critic)
-        # self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=critic_lr)
-        # self.action_dim = action_dim
-        # self.max_action = max_action
-        # self.discount = discount
-        # self.tau = tau
-        # self.policy_noise = policy_noise
-        # self.noise_clip = noise_clip
-        # self.policy_freq = policy_freq
-        # self.alpha = alpha
-
-        # self.k = k
-        # self.total_it = 0
-        # # KD-Tree
-        # self.beta = beta
         pass
 
 
@@ -116,6 +82,8 @@ class PRDCPolicy(torch.nn.Module):
 
 
 def algo_init(args):
+    logger.info('Run algo_init function')
+    setup_seed(args['seed'])
     if args["state_dim"] and args["action_dim"]:
         state_dim, action_dim = args["state_dim"], args["action_dim"]
     elif "task" in args.keys():
@@ -257,11 +225,6 @@ class AlgoTrainer(BaseAlgo):
             self.log_res(epoch, res)
 
         return self.get_policy()
-
-    #def save_model(self, model_save_path):
-    #    torch.save(self.get_policy(), model_save_path)
     
     def get_policy(self):
         return self.actor
-
-# python examples/train_d4rl.py --algo_name=cql --exp_name=d4rl-halfcheetah-medium-prdc --task d4rl-halfcheetah-medium-v0

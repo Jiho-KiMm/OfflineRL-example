@@ -38,6 +38,8 @@ transition_layers = 4
 
 transition_init_num = 20
 transition_select_num = 14
+# by selecting a number smaller than rollout_batch_size, you can protect the model rollout from OOM error
+mini_forward_size = -1
 
 real_data_ratio = 0.05
 
@@ -46,6 +48,9 @@ policy_batch_size = 256
 data_collection_per_epoch = 50e3
 steps_per_epoch = 1000
 max_epoch = 1000
+
+
+eval_episodes = 100
 
 learnable_alpha = True
 uncertainty_mode = 'aleatoric'
@@ -58,7 +63,7 @@ soft_target_tau = 5e-3
 horizon = 10
 lam = 0.25
 
-penalty_clip = 40
+penalty_clip = 20
 mode = 'normalize' # 'normalize', 'local', 'noRes'
 
 #tune

@@ -1,4 +1,5 @@
 import fire
+
 from offlinerl.algo import algo_select
 from offlinerl.data.d4rl import load_d4rl_buffer
 from offlinerl.evaluation import OnlineCallBackFunction
@@ -10,11 +11,11 @@ def run_algo(**kwargs):
     algo_init = algo_init_fn(algo_config)
     algo_trainer = algo_trainer_obj(algo_init, algo_config)
     callback = OnlineCallBackFunction()
-    callback.initialize(train_buffer=train_buffer, val_buffer=None, task=algo_config["task"])
+    callback.initialize(train_buffer=train_buffer, val_buffer=None, 
+                        task=algo_config["task"], number_of_runs=algo_config.get("eval_episodes",100))
 
     algo_trainer.train(train_buffer, None, callback_fn=callback)
 
 if __name__ == "__main__":
     fire.Fire(run_algo)
-
     

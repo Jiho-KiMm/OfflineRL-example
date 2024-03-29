@@ -7,13 +7,16 @@ from offlinerl.evaluation import get_defalut_callback, OnlineCallBackFunction
 
 def run_algo(**kwargs):
     algo_init_fn, algo_trainer_obj, algo_config = algo_select(kwargs)
-    train_buffer, val_buffer = load_data_from_neorl(algo_config["task"], algo_config["task_data_type"], algo_config["task_train_num"])
+    train_buffer, val_buffer = load_data_from_neorl(algo_config["task"], 
+                                                    algo_config["task_data_type"], algo_config["task_train_num"])
+    algo_config['data_name'] = "neorl2-" + algo_config["task"]
     algo_init = algo_init_fn(algo_config)
     algo_trainer = algo_trainer_obj(algo_init, algo_config)
     callback = OnlineCallBackFunction()
-    callback.initialize(train_buffer=train_buffer, val_buffer=val_buffer, task=algo_config["task"])
+    callback.initialize(train_buffer=train_buffer, val_buffer=val_buffer, 
+                        task=algo_config["task"], number_of_runs=algo_config.get("eval_episodes",100))
 
-    algo_trainer.train(train_buffer, val_buffer, callback_fn=callback)
+    algo_trainer.train(train_buffer, None, callback_fn=callback)
 
 if __name__ == "__main__":
     fire.Fire(run_algo)

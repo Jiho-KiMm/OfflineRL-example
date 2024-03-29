@@ -13,6 +13,7 @@ from offlinerl.algo.base import BaseAlgo
 from offlinerl.utils.net.common import MLP
 from offlinerl.utils.exp import setup_seed
 
+
 class VAE(torch.nn.Module):
     def __init__(self, state_dim, action_dim, vae_features, vae_layers, max_action=1.0):
         super().__init__()

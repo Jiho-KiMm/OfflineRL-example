@@ -1,19 +1,29 @@
 import gym
-import neorl
 import numpy as np
 from typing import Tuple
 
+def create_terminal_function():
+    return terminal_function
 
 def get_env(task : str) -> gym.Env:
     try:
-        if task.startswith("HalfCheetah-v3"):
+        if task in ['Pipeline', 'Simglucose', 'RocketRecovery', 'RandomFrictionHopper', 'DMSD', 'Fusion', 'Salespromotion', 'SafetyHalfCheetah']:
+            import neorl2
+            import gymnasium as gym
+            env = gym.make(task)
+        elif task.startswith("HalfCheetah-v3"):
+            import neorl
             env = neorl.make("HalfCheetah-v3")
         elif task.startswith("Hopper-v3"):
+            import neorl
             env = neorl.make("Hopper-v3")
-        elif task.startswith("Walker2d-v3"):   
+        elif task.startswith("Walker2d-v3"): 
+            import neorl  
             env = neorl.make("Walker2d-v3")
         elif task.startswith('d4rl'):
+            import gym
             import d4rl
+            from d4rl import gym_mujoco
             env = gym.make(task[5:])
             # hack to add terminal function 
             if 'hopper' in task:
@@ -59,7 +69,8 @@ def get_env(task : str) -> gym.Env:
                         done = done.reshape(-1, 1)
                     return done
 
-                env.get_done_func = lambda: terminal_function
+                # env.get_done_func = lambda: terminal_function
+                env.get_done_func = create_terminal_function
             elif 'walker' in task:
                 def terminal_function(data : dict):
 
@@ -103,7 +114,8 @@ def get_env(task : str) -> gym.Env:
                         
                     return done
 
-                env.get_done_func = lambda: terminal_function
+                # env.get_done_func = lambda: terminal_function
+                env.get_done_func = create_terminal_function
         else:
             task_name = task.strip().split("-")[0]
             env = neorl.make(task_name)

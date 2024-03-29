@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 
 from offlinerl.utils.function import soft_clamp
@@ -71,20 +72,21 @@ class EnsembleTransition(torch.nn.Module):
         self.obs_std = obs.std(dim=0)
 
     def forward(self, obs_action):
-        # Normalization for obs. If 'normaliza', no residual. 
+        # Normalization for obs. If 'normalize', no residual. 
         # use 'dims' to make forward work both when training and evaluating
-        dims = len(obs_action.shape) - 2
+        dims = len(obs_action.shape) - 2  # dim == 0: eval, dim == 1: train
         if self.obs_mean is not None:
-            if dims:
+            if dims == 1:
                 obs_mean = self.obs_mean.unsqueeze(0).expand(obs_action.shape[0], -1).to(obs_action.device)
                 obs_std = self.obs_std.unsqueeze(0).expand(obs_action.shape[0], -1).to(obs_action.device)
             else:
                 obs_mean = self.obs_mean.to(obs_action.device)
                 obs_std = self.obs_std.to(obs_action.device)
+
             if self.mode == 'normalize':
                 batch_size = obs_action.shape[dims]
                 obs, action = torch.split(obs_action, [self.obs_dim, obs_action.shape[-1] - self.obs_dim], dim=-1)
-                if dims:
+                if dims == 1:
                     obs = obs - obs_mean.unsqueeze(dims).expand(-1, batch_size, -1)
                     obs = obs / (obs_std.unsqueeze(dims).expand(-1, batch_size, -1) + 1e-8)
                 else:
@@ -95,6 +97,7 @@ class EnsembleTransition(torch.nn.Module):
                 output = obs_action
         else:
             output = obs_action
+
         for layer in self.backbones:
             output = self.activation(layer(output))
         mu, logstd = torch.chunk(self.output_layer(output), 2, dim=-1)
@@ -110,6 +113,7 @@ class EnsembleTransition(torch.nn.Module):
         return torch.distributions.Normal(mu, torch.exp(logstd))
 
     def set_select(self, indexes):
+        self.elites = indexes
         for layer in self.backbones:
             layer.set_select(indexes)
         self.output_layer.set_select(indexes)
@@ -118,3 +122,7 @@ class EnsembleTransition(torch.nn.Module):
         for layer in self.backbones:
             layer.update_save(indexes)
         self.output_layer.update_save(indexes)
+
+    def random_elite_idxs(self,  batch_size: int) -> np.ndarray:
+        idxs = np.random.choice(len(self.elites), size=batch_size)
+        return idxs

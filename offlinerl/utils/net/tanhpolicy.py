@@ -43,7 +43,7 @@ class TanhNormal(Distribution):
     
     @property
     def mode(self):
-        return torch.tanh(self.normal_mean)
+        return ((self.max_action-self.min_action)/2) * torch.tanh(self.normal_mean) + (self.max_action+self.min_action)/2
 
     def log_prob(self, value, pre_tanh_value=None):
         """
@@ -79,8 +79,6 @@ class TanhNormal(Distribution):
             return (self.max_action-self.min_action)/2*torch.tanh(z)+(self.max_action+self.min_action)/2, z
         else:
             return (self.max_action-self.min_action)/2*torch.tanh(z)+(self.max_action+self.min_action)/2
-    
-
 
     def rsample(self, return_pretanh_value=False):
         """
@@ -140,7 +138,6 @@ class TanhGaussianPolicy(ActorProb, BasePolicy):
             state=None,
             infor={},
             reparameterize=True,
-
     ):
         """
         :param obs: Observation
@@ -161,7 +158,7 @@ class TanhGaussianPolicy(ActorProb, BasePolicy):
             log_std = (self.sigma.view(shape) + torch.zeros_like(mean))
             std = log_std.exp()
         
-        return TanhNormal(mean, std)
+        return TanhNormal(mean, std, max_action=self._max, min_action=-self._max)
     
     def policy_infer(self, obs):
         return self(obs).mode
