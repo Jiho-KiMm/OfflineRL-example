@@ -14,7 +14,6 @@ max_epoch = 1000
 batch_size = 256
 state_dim = None
 action_dim = None
-device = 'cpu'
 alpha = 2.5
 beta = 2.0
 k = 1
@@ -27,3 +26,10 @@ expl_noise = 0.1
 critic_lr = 3e-4
 actor_lr = 3e-4
 max_action = 1.0
+
+
+#tune
+grid_tune = {
+    "alpha" : [2.5, 7.5, 20.0, 40.0],
+    "beta" : [2.0, 7.5, 15.0],
+}
