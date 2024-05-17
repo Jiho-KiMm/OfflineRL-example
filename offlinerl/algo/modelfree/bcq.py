@@ -207,7 +207,7 @@ class AlgoTrainer(BaseAlgo):
             res['kl_loss'] = kl_loss.item()
             self.log_res(epoch, res)
 
-        return self.get_policy()
+        return self.report_result
 
     #def save_model(self, model_save_path):
     #    torch.save(self.get_policy(), model_save_path)

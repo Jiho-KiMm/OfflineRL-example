@@ -205,16 +205,20 @@ class ModelBasedAlgoTrainer(BaseAlgo):
             self.actor.set_scaler(self.policy_scaler)
 
         if self.args['dynamics_path'] is not None:
+            print(f"Load dynamic model from {self.args['dynamics_path']}")
             if os.path.exists(self.args['dynamics_path']):
                 load_path = self.args['dynamics_path']
             else:
                 common_dynamcis_dir = os.path.join(self.index_path, "dynamics_model")
                 load_path = os.path.join(common_dynamcis_dir, self.args['dynamics_path'])
                 print(f"load_path: {load_path}")
+            if load_path.endswith("dynamics_model.pt"):
+                load_path = os.path.dirname(load_path)
             self.dynamics.model = torch.load(os.path.join(load_path, "dynamics_model.pt"), map_location='cpu').to(self.device)
             self.dynamics.model.device = torch.device(self.device)
             self.dynamics.scaler.load_scaler(load_path, surfix="dynamics_")
         else:
+            print(f"Train dynamic model.")
             self.train_transition(self.real_buffer.sample_all())
             # if self.args['dynamics_save_path'] is not None: 
             #     torch.save(self.dynamics.model, os.path.join(self.args['dynamics_save_path'], "dynamics_model.pt"))
@@ -232,6 +236,8 @@ class ModelBasedAlgoTrainer(BaseAlgo):
             self.dynamics.scaler.save_scaler(dynamic_save_dir, surfix="dynamics_")
 
         self.train_policy(callback_fn)
+        
+        return self.report_result 
     
     def get_policy(self):
         return self.actor
@@ -409,17 +415,16 @@ class ModelBasedAlgoTrainer(BaseAlgo):
             
             if self.lr_scheduler is not None:
                 self.lr_scheduler.step()
+                
+            res = callback_fn(self.get_policy())
+            res.update(loss)
             
-            self.log_res(epoch, loss)
             if collect_data_flag:
-                self.log_res(epoch, rollout_info)
+                res.update(rollout_info)
             if transition_update_flag:
-                self.log_res(epoch, all_loss_info)
+                res.update(all_loss_info)
 
-            val_freq = self.args.get("val_frequency", 1)
-            if (epoch+1) % val_freq == 0:
-                res = callback_fn(self.get_policy())
-                self.log_res(epoch, res)
+            self.log_res(epoch, res)
 
         return self.get_policy()
 

@@ -61,8 +61,6 @@ discount = 0.99
 soft_target_tau = 5e-3
 
 # others
-val_frequency = 10
-eval_episodes = 10
 model_retain_epochs = 5
 
 # mopo config

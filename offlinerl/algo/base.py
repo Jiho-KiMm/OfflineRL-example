@@ -7,7 +7,7 @@ import torch
 from collections import OrderedDict
 from loguru import logger
 from offlinerl.utils.exp import init_exp_run
-from offlinerl.utils.io import create_dir, download_helper, read_json
+from offlinerl.utils.io import create_dir
 from offlinerl.utils.logger import log_path
 
 
@@ -34,25 +34,12 @@ class BaseAlgo(ABC):
         
         self.repo = repo
 
-        # 生成 1 到 5 之间的随机整数，单位为秒
-        # random_seconds = random.randint(1, 5)
-
-        # # 等待随机生成的秒数
-        # print(f"等待 {random_seconds} 秒...")
-        # time.sleep(random_seconds)
-
-        # print("等待结束，继续执行下一步操作。")
-
-        # try:
         try:
             self.exp_run = init_exp_run(repo = repo, experiment_name = exp_name)
         except:
             time.sleep(random.randint(1, 5))
             self.exp_run = init_exp_run(repo = repo, experiment_name = exp_name)
-
-        # except:
-        #     time.sleep(2)
-        #     self.exp_run = init_exp_run(repo = repo, experiment_name = exp_name)
+            
         if self.exp_run.repo is not None:  # a naive fix of aim exp_logger.repo is None
             self.index_path = self.exp_run.repo.path
         else:
@@ -85,7 +72,13 @@ class BaseAlgo(ABC):
         tmp_dir = os.path.join(self.models_save_dir, self.run_id)
         if not os.path.exists(tmp_dir):
             os.makedirs(tmp_dir)
-        self.save_model(os.path.join(tmp_dir, str(epoch) + ".pt"))            
+        # self.save_model(os.path.join(tmp_dir, str(epoch) + ".pt"))           
+        self.save_model(os.path.join(tmp_dir, "policy.pt")) 
+        
+        self.report_result = result
+        self.report_result["hparams"] = self.exp_run['hparams']
+        self.report_result["model_path"] = os.path.join(tmp_dir, "policy.pt")
+        
     
     @abstractmethod
     def train(self, 

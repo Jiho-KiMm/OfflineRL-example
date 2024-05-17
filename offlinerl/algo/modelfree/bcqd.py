@@ -130,6 +130,8 @@ class AlgoTrainer(BaseAlgo):
                 res = callback_fn(self.get_policy())
                 
                 self.log_res(training_iters // self.args["eval_freq"], res)
+                
+        return self.report_result
 
 
     def polyak_target_update(self):

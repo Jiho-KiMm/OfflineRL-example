@@ -283,3 +283,5 @@ class AlgoTrainer(BaseAlgo):
             self._train_policy_latent(train_buffer, callback_fn)
         else:
             self._train_policy(train_buffer, callback_fn)
+            
+        return self.report_result

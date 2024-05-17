@@ -82,17 +82,12 @@ class AlgoTrainer(BaseAlgo):
             if val_loss < self.best_loss:
                 self.best_loss = val_loss
                 self.best_actor.load_state_dict(self.actor.state_dict())
-
-            val_frequency = self.args.get("val_frequency",1)
-            if (epoch+1) % val_frequency == 0:
-                res = callback_fn(self.get_policy())
-            else:
-                res = {}
+                
+            res = callback_fn(self.get_policy())
             res['loss'] = val_loss
-
             self.log_res(epoch, res)
 
-        return self.get_policy()
+        return self.report_result
     
     def get_policy(self):
         return self.best_actor

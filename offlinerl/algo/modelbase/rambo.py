@@ -136,7 +136,10 @@ class AlgoTrainer(ModelBasedAlgoTrainer):
                 common_dynamcis_dir = os.path.join(self.index_path, "dynamics_model")
                 load_path = os.path.join(common_dynamcis_dir, self.args['dynamics_path'])
                 print(f"load_path: {load_path}")
+            if load_path.endswith("dynamics_model.pt"):
+                load_path = os.path.dirname(load_path)
             self.dynamics.model = torch.load(os.path.join(load_path, "dynamics_model.pt"), map_location='cpu').to(self.device)
+            self.dynamics.model.device = torch.device(self.device)
             self.dynamics.scaler.load_scaler(load_path, surfix="dynamics_")
             self.dynamics_adv_optim = torch.optim.Adam(self.dynamics.model.parameters(), lr=self.args['transition_adv_lr'])
         else:
@@ -157,6 +160,8 @@ class AlgoTrainer(ModelBasedAlgoTrainer):
             self.dynamics.scaler.save_scaler(dynamic_save_dir, surfix="dynamics_")
 
         self.train_policy(callback_fn)
+        
+        return self.report_result
 
     def pretrain_policy(self, data) -> None:
         batch_size = self.args['policy_bc_batch_size']

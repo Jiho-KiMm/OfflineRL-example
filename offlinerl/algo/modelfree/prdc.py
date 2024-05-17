@@ -3,6 +3,7 @@
 # https://github.com/sfujim/BCQ
 
 import torch
+torch.multiprocessing.set_start_method('spawn', force=True)
 import numpy as np
 from copy import deepcopy
 from loguru import logger
@@ -13,11 +14,12 @@ from scipy.spatial import KDTree
 import json
 import copy
 from offlinerl.algo.base import BaseAlgo
-from offlinerl.utils.net.common import MLP
+from offlinerl.utils.net.common import BasePolicy
 from offlinerl.utils.exp import setup_seed
+from offlinerl.utils.net.common import BasePolicy
 
 
-class Actor(nn.Module):
+class Actor(nn.Module,BasePolicy):
     def __init__(self, state_dim, action_dim, max_action, device):
         super(Actor, self).__init__()
         self.l1 = nn.Linear(state_dim, 256)
@@ -31,9 +33,8 @@ class Actor(nn.Module):
         a = F.relu(self.l2(a))
         return self.max_action * torch.tanh(self.l3(a))
     
-    def get_action(self, state):
-        state = torch.FloatTensor(state.reshape(1, -1)).to(self.device) 
-        return self.forward(state).cpu().detach().numpy() 
+    def policy_infer(self, obs):
+        return self(obs)
     
 
 class Critic(nn.Module):
@@ -222,9 +223,17 @@ class AlgoTrainer(BaseAlgo):
                 self._sync_weight(self.critic_target, self.critic, soft_target_tau=self.args['tau'])
 
             res = callback_fn(self.get_policy())
+            
+            res.update({
+                "actor_loss" : actor_loss.item(),
+                "dc_loss" : dc_loss.item(),
+                
+            })
+            
+            res = callback_fn(self.get_policy())
             self.log_res(epoch, res)
 
-        return self.get_policy()
+        return self.report_result
     
     def get_policy(self):
         return self.actor

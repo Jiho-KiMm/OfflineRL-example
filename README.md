@@ -9,6 +9,9 @@ OfflineRL is a repository for Offline RL (batch reinforcement learning or offlin
 - **PLAS**: Zhou, Wenxuan, et al. “PLAS: Latent Action Space for Offline Reinforcement Learning.” ArXiv Preprint ArXiv:2011.07213, 2020.
  [website](https://sites.google.com/view/latent-policy) [paper](https://arxiv.org/abs/2011.07213) [code](https://github.com/Wenxuan-Zhou/PLAS)
 - **BCQ**: Fujimoto, Scott, et al. “Off-Policy Deep Reinforcement Learning without Exploration.” International Conference on Machine Learning, 2018, pp. 2052–2062. [paper](https://arxiv.org/abs/1812.02900) [code](https://github.com/sfujim/BCQ)
+- **EDAC**: An, Gaon, et al. "Uncertainty-based offline reinforcement learning with diversified q-ensemble." Advances in neural information processing systems 34 (2021): 7436-7447. [paper](https://arxiv.org/abs/2110.01548) [code](https://github.com/snu-mllab/EDAC)
+- **MCQ**: Lyu, Jiafei, et al. "Mildly conservative q-learning for offline reinforcement learning." Advances in Neural Information Processing Systems 35 (2022): 1711-1724. [paper](https://arxiv.org/abs/2206.04745) [code](https://github.com/dmksjfl/MCQ)
+- **TD3BC**: Fujimoto, Scott, and Shixiang Shane Gu. "A minimalist approach to offline reinforcement learning." Advances in neural information processing systems 34 (2021): 20132-20145. [paper](https://arxiv.org/abs/2106.06860) [code](https://github.com/sfujim/TD3_BC)
 - **PRDC**: Ran, Yuhang, et al. “Policy Regularization with Dataset Constraint for Offline Reinforcement Learning.” International Conference on Machine Learning, 2023, pp. 28701-28717. [paper](https://arxiv.org/abs/2306.06569) [code](https://github.com/LAMDA-RL/PRDC)
 ### Model-based methods
 - **BREMEN**: Matsushima, Tatsuya, et al. “Deployment-Efficient Reinforcement Learning via Model-Based Offline Optimization.” International Conference on Learning Representations, 2021. [paper](https://openreview.net/forum?id=3hGNqpI4WS) [code](https://github.com/matsuolab/BREMEN)
@@ -16,6 +19,7 @@ OfflineRL is a repository for Offline RL (batch reinforcement learning or offlin
 - **MOPO**: Yu, Tianhe, et al. “MOPO: Model-Based Offline Policy Optimization.” Advances in Neural Information Processing Systems, vol. 33, 2020. [paper](https://papers.nips.cc/paper/2020/hash/a322852ce0df73e204b7e67cbbef0d0a-Abstract.html) [code](https://github.com/tianheyu927/mopo)
 - **MAPLE**: Xiong-Hui Chen, et al. "MAPLE: Offline Model-based Adaptable Policy Learning". Advances in Neural Information Processing Systems, vol. 34, 2021. [paper](https://proceedings.neurips.cc/paper/2021/hash/470e7a4f017a5476afb7eeb3f8b96f9b-Abstract.html) [code](https://github.com/xionghuichen/MAPLE)
 - **MOBILE**: Yihao Sun, et al. "Model-Bellman Inconsistency for Model-based Offline Reinforcement Learning". Proceedings of the 40th International Conference on Machine Learning, PMLR 202:33177-33194, 2023. [paper](https://proceedings.mlr.press/v202/sun23q.html) [code](https://github.com/yihaosun1124/mobile)
+- **RAMBO**: Rigter, Marc, Bruno Lacerda, and Nick Hawes. "Rambo-rl: Robust adversarial model-based offline reinforcement learning." Advances in neural information processing systems 35 (2022): 16082-16097. [paper](https://arxiv.org/abs/2204.12581) [code](https://github.com/marc-rigter/rambo)
 
 ## Install Datasets
 ### NeoRL

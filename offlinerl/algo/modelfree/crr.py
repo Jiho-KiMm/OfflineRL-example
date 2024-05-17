@@ -129,7 +129,7 @@ class AlgoTrainer(BaseAlgo):
             
             self.log_res(epoch, res)
 
-        return self.get_policy()
+        return self.report_result
     
     def get_policy(self):
         return self.actor
