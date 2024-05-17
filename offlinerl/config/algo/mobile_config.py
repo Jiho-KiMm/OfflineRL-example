@@ -24,7 +24,7 @@ max_epochs_since_update = 5
 transition_max_epochs = None
 
 # trick config
-trainsition_clip = False
+trainsition_clip = True
 normalize_obs = False
 transition_scaler = True
 policy_scaler = False
@@ -42,8 +42,8 @@ alpha_lr = 1e-4
 alpha = 0.2
 
 # train config
-horizon = 1
-real_data_ratio = 0.5
+horizon = 5
+real_data_ratio = 0.05
 max_epoch = 3000
 steps_per_epoch = 1000
 rollout_freq = 1000
@@ -82,6 +82,6 @@ params_tune = {
 #tune
 grid_tune = {
     "horizon" : [1, 5],
-    "penalty_coef" : [2.5, 3.5],
-    "real_data_ratio" :[0.05, 0.5], 
+    "penalty_coef" : [0.5, 1.5, 2.5, 3.5],
+    "real_data_ratio" :[0.05], 
 }

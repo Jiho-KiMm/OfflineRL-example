@@ -263,107 +263,25 @@ class AlgoTrainer(BaseAlgo):
         return result
 
     def train(self, train_buffer, val_buffer, callback_fn):
-        start_time = time.time()
-
-        num_timesteps = 0
-        last_10_performance = deque(maxlen=10)
         # train loop
-        for e in range(1, self._epoch + 1):
+        for epoch in range(1, self._epoch + 1):
             self.net_train()
-
-            pbar = tqdm(range(self._step_per_epoch), desc=f"Epoch #{e}/{self._epoch}")
+            pbar = tqdm(range(self._step_per_epoch), desc=f"Epoch #{epoch}/{self._epoch}")
             for it in pbar:
                 batch = train_buffer.sample(self._batch_size)
                 batch = batch.to_torch(device=self.args['device'])
                 loss = self.learn(batch)
                 pbar.set_postfix(**loss)
-
-                # for k, v in loss.items():
-                #     self.writer.add_scalar(k, v, (e-1)*self.args["step_per_epoch"]+it)
-                
-                # num_timesteps += 1
-
             
-            # evaluate current policy
-            
-            val_frequency = self.args.get("val_frequency",1)
-            if (e+1) % val_frequency == 0:
-                self.net_eval()
-                res = callback_fn(self.get_policy())
-                ep_reward_mean, ep_reward_std = res['Reward_Mean_Env'], res['Reward_Std_Env']
-                ep_length_mean, ep_length_std = res['Length_Mean_Env'], res['Length_Std_Env']
-                
-                norm_ep_rew_mean = ep_reward_mean
-                norm_ep_rew_std = ep_reward_std
-
-                last_10_performance.append(norm_ep_rew_mean)
-            else:
-                res = {}
-
+            self.net_eval()
+            res = callback_fn(self.get_policy())
             res.update(loss)
-            self.log_res(e, res)
+            self.log_res(epoch, res)
 
-            
-            # self.writer.add_scalar("eval/normalized_episode_reward", norm_ep_rew_mean, e)
-            # self.writer.add_scalar("eval/normalized_episode_reward_std", norm_ep_rew_std, e)
-            # self.writer.add_scalar("eval/episode_length", ep_length_mean, e)
-            # self.writer.add_scalar("eval/episode_length_std", ep_length_std, e)        
-            # save checkpoint
-            # torch.save(self.actor.state_dict(), os.path.join(self.index_path, f"testing_tb_logs_{self.current_time}", f"ep_{e}_policy.pth"))
-            # logger.info("eval reward: {:.2f} +- {:.2f}".format(norm_ep_rew_mean, norm_ep_rew_std))
-
-        logger.info("total time: {:.2f}s".format(time.time() - start_time))
-        # torch.save(self.actor.state_dict(), os.path.join(self.index_path, f"testing_tb_logs_{self.current_time}", "last_step_policy.pth"))
-        print({"last_10_performance": np.mean(last_10_performance)})
-        return self.get_policy()
-
-    # def _evaluate(self) -> Dict[str, List[float]]:
-    #     self.net_eval.eval()
-    #     obs,_ = self.eval_env.reset()
-    #     eval_ep_info_buffer = []
-    #     num_episodes = 0
-    #     episode_reward, episode_length = 0, 0
-
-    #     while num_episodes < self._eval_episodes:
-    #         action = self.policy.select_action(obs.reshape(1,-1), deterministic=True)
-    #         next_obs, reward, terminal, timeout,_ = self.eval_env.step(action.flatten())
-    #         terminal = terminal or timeout
-    #         episode_reward += reward
-    #         episode_length += 1
-
-    #         obs = next_obs
-
-    #         if terminal:
-    #             eval_ep_info_buffer.append(
-    #                 {"episode_reward": episode_reward, "episode_length": episode_length}
-    #             )
-    #             num_episodes +=1
-    #             episode_reward, episode_length = 0, 0
-    #             obs,_ = self.eval_env.reset()
-        
-    #     return {
-    #         "eval/episode_reward": [ep_info["episode_reward"] for ep_info in eval_ep_info_buffer],
-    #         "eval/episode_length": [ep_info["episode_length"] for ep_info in eval_ep_info_buffer]
-    #     }
-    
+        return self.report_result
         
     def get_model(self):
         return self.actor
-    
-    #def save_model(self, model_save_path):
-    #    torch.save(self.actor, model_save_path)
         
     def get_policy(self):
         return self.actor
-    
-    # def train(self, train_buffer, val_buffer, callback_fn):
-    #     for epoch in range(1,self.args["max_epoch"]+1):
-    #         for step in range(1,self.args["steps_per_epoch"]+1):
-    #             train_data = train_buffer.sample(self.args["batch_size"])
-    #             self._train(train_data)
-            
-    #         res = callback_fn(self.get_policy())
-
-    #         self.log_res(epoch, res)
-            
-    #     return self.get_policy()

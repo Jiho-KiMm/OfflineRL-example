@@ -98,6 +98,7 @@ class EnsembleDynamics(BaseDynamics):
         action: torch.Tensor,
         num_samples: int,
         transition_scaler: bool = True,
+        transition_clip: bool = False,
     ) -> torch.Tensor:
         obs_act = torch.cat([obs, action], dim=-1)
         if transition_scaler:
@@ -111,6 +112,10 @@ class EnsembleDynamics(BaseDynamics):
 
         samples = torch.stack([mean + torch.randn_like(std) * std for i in range(num_samples)], 0)
         next_obss = samples[..., :-1]
+        if transition_clip:
+            obs_min = torch.as_tensor(self.obs_min).to(next_obss.device)
+            obs_max = torch.as_tensor(self.obs_max).to(next_obss.device)
+            next_obss = torch.clamp(next_obss, obs_min, obs_max)
         return next_obss
 
     def format_samples_for_training(self, data: Dict) -> Tuple[np.ndarray, np.ndarray]:

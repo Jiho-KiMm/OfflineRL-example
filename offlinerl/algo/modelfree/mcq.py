@@ -280,12 +280,8 @@ class AlgoTrainer(BaseAlgo):
                 self._sync_weight(self.target_q1, self.q1, soft_target_tau=self.args['soft_target_tau'])
                 self._sync_weight(self.target_q2, self.q2, soft_target_tau=self.args['soft_target_tau'])
                 
-            logger.info('Pi loss and critic loss: {}, {}, {}'.format(actor_loss.item(), critic1_loss.item(), critic2_loss.item()))
-            val_frequency = self.args.get("val_frequency",1)
-            if (epoch+1) % val_frequency == 0:
-                res = callback_fn(self.get_policy())
-            else:
-                res = {}
+
+            res = callback_fn(self.get_policy())
 
             if self.args["auto_alpha"]:
                 alpha = alpha.item()
@@ -301,13 +297,10 @@ class AlgoTrainer(BaseAlgo):
                 
             })
 
-
             self.log_res(epoch, res)
 
-        return self.get_policy()
+        return self.report_result
 
-    #def save_model(self, model_save_path):
-    #    torch.save(self.get_policy(), model_save_path)
     
     def get_model(self):
         return self.actor

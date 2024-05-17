@@ -131,7 +131,7 @@ class AlgoTrainer(BaseAlgo):
             self.dynamics.model.device = torch.device(self.device)
             self.dynamics.scaler.load_scaler(load_path, surfix="dynamics_")
         else:
-            self.train_transition(self.real_buffer.sample_all(), callback_fn)
+            res = self.train_transition(self.real_buffer.sample_all(), callback_fn)
             # if self.args['dynamics_save_path'] is not None:
             # create common directory for dynamics model
             common_dynamcis_dir = os.path.join(self.index_path, "dynamics_model")
@@ -142,8 +142,14 @@ class AlgoTrainer(BaseAlgo):
             if not os.path.exists(dynamic_save_dir):
                 os.makedirs(dynamic_save_dir)
             # save dynamics model
-            torch.save(self.dynamics.model, os.path.join(dynamic_save_dir, "dynamics_model.pt"))
+            model_save_path = os.path.join(dynamic_save_dir, "dynamics_model.pt")
+            torch.save(self.dynamics.model, model_save_path)
             self.dynamics.scaler.save_scaler(dynamic_save_dir, surfix="dynamics_")
+            
+            res["model_save_path"] = model_save_path
+            res["hparams"] = self.exp_run['hparams']
+            
+        return res
     
     def train_transition(self, data, callback_fn):
         inputs, targets = self.dynamics.format_samples_for_training(data)
@@ -210,6 +216,9 @@ class AlgoTrainer(BaseAlgo):
         self.dynamics.model.eval()
         print("elites:{} , val loss: {}".format(indexes, (np.sort(val_losses)[:self.dynamics.model.num_elites]).mean()))
         print(f"val loss each elite: {np.sort(val_losses)[:self.dynamics.model.num_elites]}")
+        
+        res = {"loss" : np.mean(val_losses).item()}
+        return res
 
     def dynamics_learn(self, inputs, targets, batch_size, logvar_loss_coef):
         self.dynamics.model.train()

@@ -331,13 +331,9 @@ class AlgoTrainer(BaseAlgo):
             "alpha_loss" : alpha_loss.item(),
             "alpha" : alpha.item(),
         }
-
         
     def get_model(self):
         return self.actor
-    
-    #def save_model(self, model_save_path):
-    #    torch.save(self.actor, model_save_path)
         
     def get_policy(self):
         return self.actor
@@ -348,13 +344,8 @@ class AlgoTrainer(BaseAlgo):
                 train_data = train_buffer.sample(self.args["batch_size"])
                 loss = self._train(train_data)
             
-            val_frequency = self.args.get("val_frequency",1)
-            if (epoch+1) % val_frequency == 0:
-                res = callback_fn(self.get_policy())
-            else:
-                res = {}
+            res = callback_fn(self.get_policy())
             res.update(loss)
-            
             self.log_res(epoch, res)
             
-        return self.get_policy()
+        return self.report_result

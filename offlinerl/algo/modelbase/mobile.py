@@ -143,6 +143,7 @@ class AlgoTrainer(ModelBasedAlgoTrainer):
         self.lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.actor_optim, args['max_epoch'])
 
         self.deterministic_backup = True
+        self.transition_clip = self.args["trainsition_clip"]
 
         # for mopo
         self.penalty_coef = 0.0 if "penalty_coef" not in self.args else self.args["penalty_coef"]
@@ -166,7 +167,7 @@ class AlgoTrainer(ModelBasedAlgoTrainer):
     @ torch.no_grad()
     def compute_lcb(self, obss: torch.Tensor, actions: torch.Tensor):
         # compute next q std
-        pred_next_obss = self.dynamics.sample_next_obss(obss, actions, self.args['num_samples'], transition_scaler=self.args['transition_scaler'])
+        pred_next_obss = self.dynamics.sample_next_obss(obss, actions, self.args['num_samples'], transition_scaler=self.args['transition_scaler'], transition_clip=self.transition_clip)
         num_samples, num_ensembles, batch_size, obs_dim = pred_next_obss.shape
         pred_next_obss = pred_next_obss.reshape(-1, obs_dim)
         pred_next_actions, _ = self.actforward(pred_next_obss)
@@ -188,6 +189,8 @@ class AlgoTrainer(ModelBasedAlgoTrainer):
         qs = torch.stack([critic(obss, actions) for critic in self.critics], 0)
         with torch.no_grad():
             penalty = self.compute_lcb(obss, actions)
+            penalty_clip = max(self.rew_max[0] - self.rew_min[0], self.rew_max[0])
+            penalty = torch.clamp(penalty, 0, penalty_clip)
             penalty[:len(real_batch["rewards"])] = 0.0
 
             next_actions, next_log_probs = self.actforward(next_obss)
@@ -196,7 +199,7 @@ class AlgoTrainer(ModelBasedAlgoTrainer):
             if not self.deterministic_backup:
                 next_q -= self._alpha * next_log_probs
             target_q = (rewards - self.args['penalty_coef'] * penalty) + self._gamma * (1 - terminals) * next_q
-            target_q = torch.clamp(target_q, 0, None)
+            # target_q = torch.clamp(target_q, 0, None)
 
         critic_loss = ((qs - target_q) ** 2).mean()
         self.critics_optim.zero_grad()
@@ -223,7 +226,8 @@ class AlgoTrainer(ModelBasedAlgoTrainer):
 
         result = {
             "loss/actor": actor_loss.item(),
-            "loss/critic": critic_loss.item()
+            "loss/critic": critic_loss.item(),
+            "penalty": penalty.mean().item()
         }
 
         if self._is_auto_alpha:

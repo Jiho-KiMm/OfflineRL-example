@@ -157,21 +157,19 @@ class AlgoTrainer(BaseAlgo):
                     self._sync_weight(self.target_critic_1, self.critic_1, soft_target_tau=self.args['soft_target_tau'])
                     self._sync_weight(self.target_critic_2, self.critic_2, soft_target_tau=self.args['soft_target_tau'])
                 
-            val_frequency = self.args.get("val_frequency",1)
-            if (epoch+1) % val_frequency == 0:
-                res = callback_fn(self.get_policy())
-            else:
-                res = {}
+            res = callback_fn(self.get_policy())
                 
             res.update({
                 "actor_loss" : actor_loss.item(),
                 "critic_loss" : critic_loss.item(),
+                "lmbda" : lmbda.item(),
+                "q" : q.mean().item(),
             })
 
 
             self.log_res(epoch, res)
 
-        return self.get_policy()
+        return self.report_result
 
     def get_model(self):
         return self.actor
