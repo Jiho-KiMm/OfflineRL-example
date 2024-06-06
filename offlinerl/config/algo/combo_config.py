@@ -24,7 +24,7 @@ max_epochs_since_update = 5
 transition_max_epochs = None
 
 # trick config
-trainsition_clip = False
+trainsition_clip = True
 normalize_obs = False
 transition_scaler = True
 policy_scaler = False
