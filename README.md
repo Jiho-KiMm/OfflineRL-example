@@ -25,12 +25,12 @@ OfflineRL is a repository for Offline RL (batch reinforcement learning or offlin
 ### NeoRL
 
 ```shell
-git clone https://agit.ai/Polixir/neorl.git
+git clone https://github.com/Polixir/neorl.git
 cd neorl
 pip install -e .
 ```
 
-For more details on use, please see [neorl](https://agit.ai/Polixir/neorl).
+For more details on use, please see [neorl](https://github.com/Polixir/neorl).
 
 ### D4RL (Optional)
 ```shell
@@ -68,8 +68,8 @@ python examples/train_d4rl.py --algo_name=cql --exp_name=d4rl-halfcheetah-medium
 
 - ​**algo_name**:  Algorithm name . There are now bc, cql, plas,  bcq and mopo algorithms available.
 - ​**exp_name**:  Experiment name for easy visualization using aim.
-- ​**task**: Task name, See [neorl](https://agit.ai/Polixir/neorl/wiki/Tasks) for details.
-- ​**task_data_type**: Data level. Each task collects data using low, medium, and high level strategies in [neorl](https://agit.ai/Polixir/neorl).
+- ​**task**: Task name, See [neorl](https://github.com/Polixir/neorl/wiki/Tasks) for details.
+- ​**task_data_type**: Data level. Each task collects data using low, medium, and high level strategies in [neorl](https://github.com/Polixir/neorl).
 - ​**task_train_num**:  Number of training data trajectories. For each task, neorl provides training data for up to 10000 trajectories.
 
 
