@@ -20,4 +20,4 @@ def run_algo(**kwargs):
 
 if __name__ == "__main__":
     fire.Fire(run_algo)
-    print(1)
+    print("hello")
